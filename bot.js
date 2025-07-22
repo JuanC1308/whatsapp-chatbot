@@ -1,10 +1,27 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const http = require('http');
 
-// Crear instancia del cliente
+// Servidor HTTP para Railway (OBLIGATORIO)
+const PORT = process.env.PORT || 3000;
+const server = http.createServer((req, res) => {
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.end(`
+        <h1>🤖 WhatsApp Bot Activo</h1>
+        <p>Estado: ${client ? 'Conectado' : 'Iniciando...'}</p>
+        <p>Hora: ${new Date().toLocaleString()}</p>
+    `);
+});
+
+server.listen(PORT, () => {
+    console.log(`✅ Servidor HTTP corriendo en puerto ${PORT}`);
+});
+
+// Cliente WhatsApp con configuración especial para Railway
 const client = new Client({
     authStrategy: new LocalAuth({
-        clientId: "mi-chatbot"
+        clientId: "railway-bot",
+        dataPath: "./wwebjs_auth"
     }),
     puppeteer: {
         headless: true,
@@ -16,21 +33,19 @@ const client = new Client({
             '--no-first-run',
             '--no-zygote',
             '--single-process',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--disable-extensions',
+            '--disable-plugins',
+            '--disable-images',
+            '--disable-javascript',
+            '--virtual-time-budget=5000'
         ]
     }
 });
 
-// Generar código QR para autenticación
-client.on('qr', (qr) => {
-    console.log('Escanea este código QR con tu WhatsApp:');
-    qrcode.generate(qr, { small: true });
-});
-
-// Cuando el cliente esté listo
-client.on('ready', () => {
-    console.log('¡Bot de WhatsApp está listo!');
-});
+console.log('🚀 Iniciando WhatsApp Bot...');
 
 // Respuestas del bot
 const respuestas = {
@@ -46,82 +61,87 @@ const respuestas = {
 function procesarMensaje(mensaje) {
     const texto = mensaje.toLowerCase().trim();
     
-    // Buscar coincidencias exactas
     if (respuestas[texto]) {
         return respuestas[texto];
     }
     
-    // Buscar coincidencias parciales
     for (let palabra in respuestas) {
         if (texto.includes(palabra)) {
             return respuestas[palabra];
         }
     }
     
-    // Respuesta por defecto
-    return 'No entiendo tu mensaje. Escribe "ayuda" para ver los comandos disponibles o contacta con un humano para asistencia personalizada.';
+    return 'No entiendo tu mensaje. Escribe "ayuda" para ver los comandos disponibles.';
 }
 
-// Escuchar mensajes entrantes
-client.on('message', async (message) => {
-    // Solo responder a mensajes de texto (no a imágenes, videos, etc.)
-    if (message.type !== 'chat') {
-        return;
-    }
-    
-    // No responder a mensajes de grupos (opcional)
-    const chat = await message.getChat();
-    if (chat.isGroup) {
-        return; // Descomenta esta línea si no quieres que responda en grupos
-    }
-    
-    // No responder a mensajes del propio bot
-    if (message.fromMe) {
-        return;
-    }
-    
-    console.log(`Mensaje recibido de ${message.from}: ${message.body}`);
-    
-    // Procesar mensaje y enviar respuesta
-    const respuesta = procesarMensaje(message.body);
-    
-    // Simular que está escribiendo (opcional)
-    chat.sendStateTyping();
-    
-    // Esperar un poco para simular tiempo de respuesta
-    setTimeout(async () => {
-        await message.reply(respuesta);
-        console.log(`Respuesta enviada: ${respuesta}`);
-    }, 1000);
+// Eventos del cliente
+client.on('qr', (qr) => {
+    console.log('📱 ESCANEA ESTE CÓDIGO QR CON TU WHATSAPP:');
+    console.log('----------------------------------------');
+    qrcode.generate(qr, { small: true });
+    console.log('----------------------------------------');
+    console.log('1. Abre WhatsApp en tu teléfono');
+    console.log('2. Ve a Configuración > Dispositivos vinculados');
+    console.log('3. Toca "Vincular un dispositivo"');
+    console.log('4. Escanea el código QR de arriba');
 });
 
-// Manejar errores
+client.on('ready', () => {
+    console.log('✅ ¡Bot de WhatsApp está listo y funcionando!');
+});
+
+client.on('message', async (message) => {
+    try {
+        if (message.type !== 'chat' || message.fromMe) {
+            return;
+        }
+
+        const chat = await message.getChat();
+        if (chat.isGroup) {
+            return; // No responder en grupos
+        }
+
+        console.log(`📨 Mensaje de ${message.from}: ${message.body}`);
+        
+        const respuesta = procesarMensaje(message.body);
+        
+        await message.reply(respuesta);
+        console.log(`📤 Respuesta enviada: ${respuesta.substring(0, 50)}...`);
+        
+    } catch (error) {
+        console.error('❌ Error procesando mensaje:', error);
+    }
+});
+
 client.on('auth_failure', (msg) => {
-    console.error('Error de autenticación:', msg);
+    console.error('❌ Error de autenticación:', msg);
 });
 
 client.on('disconnected', (reason) => {
-    console.log('Cliente desconectado:', reason);
+    console.log('⚠️ Cliente desconectado:', reason);
+});
+
+// Manejar errores
+process.on('unhandledRejection', (err) => {
+    console.error('❌ Error no manejado:', err);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('❌ Excepción no capturada:', err);
+    process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    console.log('🛑 Cerrando bot...');
+    await client.destroy();
+    server.close();
+    process.exit(0);
 });
 
 // Inicializar el cliente
-client.initialize();
-
-// Función para enviar mensaje programado (ejemplo)
-function enviarMensajeProgramado(numero, mensaje) {
-    const chatId = numero + '@c.us'; // Formato para números individuales
-    client.sendMessage(chatId, mensaje)
-        .then(() => {
-            console.log(`Mensaje enviado a ${numero}: ${mensaje}`);
-        })
-        .catch(err => {
-            console.error('Error enviando mensaje:', err);
-        });
-}
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-    console.log('Cerrando bot...');
-    await client.destroy();
-    process.exit(0);
+console.log('🔄 Inicializando cliente WhatsApp...');
+client.initialize().catch(err => {
+    console.error('❌ Error inicializando:', err);
+    process.exit(1);
 });
