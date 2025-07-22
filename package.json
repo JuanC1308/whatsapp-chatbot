@@ -22,4 +22,8 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   }
+  // Agrega este script a tu package.json
+"scripts": {
+  "start": "node bot.js"
+}
 }
