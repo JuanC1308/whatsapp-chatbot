@@ -4,7 +4,7 @@
   "description": "Chatbot para WhatsApp usando whatsapp-web.js",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js",
+    "start": "bot.js",
     "dev": "nodemon bot.js"
   },
   "keywords": [
