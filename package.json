@@ -1,26 +1,16 @@
 {
   "name": "whatsapp-chatbot",
   "version": "1.0.0",
-  "description": "Chatbot para WhatsApp usando whatsapp-web.js",
+  "description": "Chatbot para WhatsApp",
   "main": "bot.js",
   "scripts": {
-    "start": "bot.js",
-    "dev": "nodemon bot.js"
+    "start": "node bot.js"
   },
-  "keywords": [
-    "whatsapp",
-    "chatbot",
-    "nodejs",
-    "automation"
-  ],
-  "author": "Tu nombre",
-  "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "whatsapp-web.js": "^1.21.0",
     "qrcode-terminal": "^0.12.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
   }
-
 }
